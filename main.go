@@ -8,6 +8,7 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/mux"
+	"github.com/gorilla/sessions"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -22,6 +23,12 @@ func dbConn() (db *sql.DB) {
 	}
 	return db
 }
+
+var (
+	// key must be 16, 24 or 32 bytes long (AES-128, AES-192 or AES-256)
+	key   = []byte("super-secret-key")
+	store = sessions.NewCookieStore(key)
+)
 
 func Index(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Hello, you've requested: %s\n", r.URL.Path)
@@ -48,10 +55,41 @@ func password(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Println("Password:", password)
 	fmt.Println("Hash:    ", hash)
-
 	match := CheckPasswordHash(password, hash)
 	fmt.Println("Match:   ", match)
 
+}
+
+func secret(w http.ResponseWriter, r *http.Request) {
+	session, _ := store.Get(r, "cookie-name")
+
+	// Check if user is authenticated
+	if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
+	// Print secret message
+	fmt.Fprintln(w, "The cake is a lie!")
+}
+
+func login(w http.ResponseWriter, r *http.Request) {
+	session, _ := store.Get(r, "cookie-name")
+
+	// Authentication goes here
+	// ...
+
+	// Set user as authenticated
+	session.Values["authenticated"] = true
+	session.Save(r, w)
+}
+
+func logout(w http.ResponseWriter, r *http.Request) {
+	session, _ := store.Get(r, "cookie-name")
+
+	// Revoke users authentication
+	session.Values["authenticated"] = false
+	session.Save(r, w)
 }
 
 func main() {
@@ -60,6 +98,9 @@ func main() {
 	r.HandleFunc("/", Index)
 	r.HandleFunc("/web", web)
 	r.HandleFunc("/auth", password)
+	r.HandleFunc("/secret", secret)
+	r.HandleFunc("/login", login)
+	r.HandleFunc("/logout", logout)
 	r.HandleFunc("/books/{title}/page/{page}", func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		title := vars["title"]
