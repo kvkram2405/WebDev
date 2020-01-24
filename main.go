@@ -44,7 +44,6 @@ var tmpl = template.Must(template.ParseGlob("form/*"))
 func dashboard(w http.ResponseWriter, r *http.Request) {
 	tmpl.ExecuteTemplate(w, "Dashboard", nil)
 }
-
 func Index(w http.ResponseWriter, r *http.Request) {
 	db := dbConn()
 	selDB, err := db.Query("SELECT * FROM users ORDER BY id DESC")
@@ -69,7 +68,6 @@ func Index(w http.ResponseWriter, r *http.Request) {
 	tmpl.ExecuteTemplate(w, "Index", res)
 	defer db.Close()
 }
-
 func Show(w http.ResponseWriter, r *http.Request) {
 	db := dbConn()
 	nId := r.URL.Query().Get("id")
@@ -93,15 +91,12 @@ func Show(w http.ResponseWriter, r *http.Request) {
 	tmpl.ExecuteTemplate(w, "Show", emp)
 	defer db.Close()
 }
-
 func Registration(w http.ResponseWriter, r *http.Request) {
 	tmpl.ExecuteTemplate(w, "Registration", nil)
 }
-
 func LoginPage(w http.ResponseWriter, r *http.Request) {
 	tmpl.ExecuteTemplate(w, "Login", nil)
 }
-
 func Register(w http.ResponseWriter, r *http.Request) {
 	db := dbConn()
 	if r.Method == "POST" {
@@ -112,7 +107,6 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		t := time.Now()
 		t.Format(time.RFC3339)
 		insUForm, err := db.Prepare("INSERT INTO users (username,password, created_at) values (?,?,?)")
-
 		if err != nil {
 			panic(err.Error())
 		}
@@ -121,37 +115,26 @@ func Register(w http.ResponseWriter, r *http.Request) {
 	defer db.Close()
 	http.Redirect(w, r, "/", 301)
 }
-
-func web(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Login Failed! You will be redirected to Registration Page ...")
-}
-
 func HashPassword(password string) (string, error) {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 15)
 	return string(bytes), err
 }
-
 func CheckPasswordHash(password, hash string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 	return err == nil
 }
-
 func secret(w http.ResponseWriter, r *http.Request) {
 	session, _ := store.Get(r, "cookie-name")
-
 	// Check if user is authenticated
 	if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
 		http.Error(w, "Forbidden", http.StatusForbidden)
 		return
 	}
-
 	// Print secret message
 	fmt.Fprintln(w, "The cake is a lie!")
 }
-
 func login(w http.ResponseWriter, r *http.Request) {
 	session, _ := store.Get(r, "cookie-name")
-
 	// Authentication goes here
 	// ...
 	// Compare user password and hash
@@ -175,7 +158,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 			if match == true {
 				http.Redirect(w, r, "/dashboard", 301)
 			} else {
-				http.Redirect(w, r, "/web", 301)
+				http.Redirect(w, r, "/registration", 301)
 			}
 		}
 		session.Values["authenticated"] = true
@@ -183,21 +166,18 @@ func login(w http.ResponseWriter, r *http.Request) {
 		defer db.Close()
 	}
 }
-
 func logout(w http.ResponseWriter, r *http.Request) {
 	session, _ := store.Get(r, "cookie-name")
-
 	// Revoke users authentication
 	session.Values["authenticated"] = false
 	session.Save(r, w)
+	http.Redirect(w, r, "/", 301)
 }
-
 func main() {
 	r := mux.NewRouter()
 	log.Println("Server started on: http://localhost:3000")
 	r.HandleFunc("/dashboard", dashboard)
 	r.HandleFunc("/", Index)
-	r.HandleFunc("/web", web)
 	r.HandleFunc("/auth", LoginPage)
 	r.HandleFunc("/secret", secret)
 	r.HandleFunc("/login", login)
@@ -206,7 +186,6 @@ func main() {
 		vars := mux.Vars(r)
 		title := vars["title"]
 		page := vars["page"]
-
 		fmt.Fprintf(w, "You've requested the book: %s on page %s\n", title, page)
 	})
 	r.HandleFunc("/show", Show)
