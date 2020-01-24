@@ -191,7 +191,7 @@ func main() {
 
 		fmt.Fprintf(w, "You've requested the book: %s on page %s\n", title, page)
 	})
-	r.HandleFunc("/show/{id}", Show)
+	r.HandleFunc("/show", Show)
 	r.HandleFunc("/registration", Registration)
 	r.HandleFunc("/register", Register)
 	http.ListenAndServe(":3000", r)

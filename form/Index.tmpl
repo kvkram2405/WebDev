@@ -14,7 +14,7 @@
        <tbody>
     {{ range . }}
       <tr>
-        <td>{{ .Id }}</td>
+        <td><a href="/show?id={{ .Id }}">{{.Id}}</a></td>
         <td> {{ .Username }} </td>
         <td>{{ .Password }} </td>
         <td>{{ .Created_at }} </td> 
