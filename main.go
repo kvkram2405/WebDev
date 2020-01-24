@@ -3,10 +3,11 @@ package main
 import (
 	"database/sql"
 	"fmt"
-      "time"
 	"log"
 	"net/http"
 	"text/template"
+	"time"
+
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/sessions"
@@ -32,13 +33,13 @@ var (
 )
 
 type Employee struct {
-	Id   int
-	Username string
-     Password string
-     Created_at string
+	Id         int
+	Username   string
+	Password   string
+	Created_at string
 }
-var tmpl = template.Must(template.ParseGlob("form/*"))
 
+var tmpl = template.Must(template.ParseGlob("form/*"))
 
 func root(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Hello, you've requested: %s\n", r.URL.Path)
@@ -93,9 +94,6 @@ func Show(w http.ResponseWriter, r *http.Request) {
 	defer db.Close()
 }
 
-func New(w http.ResponseWriter, r *http.Request) {
-	tmpl.ExecuteTemplate(w, "New", nil)
-}
 func Registration(w http.ResponseWriter, r *http.Request) {
 	tmpl.ExecuteTemplate(w, "Registration", nil)
 }
@@ -106,19 +104,18 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		username := r.FormValue("username")
 		password := r.FormValue("password")
 
-t := time.Now()
-t.Format(time.RFC3339)
-insUForm, err := db.Prepare("INSERT INTO users (username,password, created_at) values (?,?,?)")
+		t := time.Now()
+		t.Format(time.RFC3339)
+		insUForm, err := db.Prepare("INSERT INTO users (username,password, created_at) values (?,?,?)")
 
 		if err != nil {
 			panic(err.Error())
 		}
-		insUForm.Exec(username, password,t)
-			}
-			defer db.Close()
+		insUForm.Exec(username, password, t)
+	}
+	defer db.Close()
 	http.Redirect(w, r, "/", 301)
 }
-
 
 func web(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Welcome to my website!")
@@ -181,7 +178,7 @@ func logout(w http.ResponseWriter, r *http.Request) {
 func main() {
 	r := mux.NewRouter()
 	log.Println("Server started on: http://localhost:3000")
-	r.HandleFunc("/", root)
+	r.HandleFunc("/", Index)
 	r.HandleFunc("/web", web)
 	r.HandleFunc("/auth", password)
 	r.HandleFunc("/secret", secret)
@@ -194,9 +191,8 @@ func main() {
 
 		fmt.Fprintf(w, "You've requested the book: %s on page %s\n", title, page)
 	})
-r.HandleFunc("/show", Show)
-	r.HandleFunc("/new", New)
+	r.HandleFunc("/show/{id}", Show)
 	r.HandleFunc("/registration", Registration)
-	r.HandleFunc("/register", Register )
+	r.HandleFunc("/register", Register)
 	http.ListenAndServe(":3000", r)
 }

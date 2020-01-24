@@ -1,8 +1,9 @@
 {{ define "Show" }}
   {{ template "Header" }}
     {{ template "Menu"  }}
-    <h2> Register {{ .Id }} </h2>
-      <p>Name: {{ .Name }}</p>
-      <p>City:  {{ .City }}</p><br /> <a href="/edit?id={{ .Id }}">Edit</a></p>
+    <h2> Register User {{ .Id }} </h2>
+      <p>User Name: {{ .Username }}</p>
+      <p>Password  {{ .Password }}</p><br />
+      <p>Created On  {{ .Created_at }}</p><br />
   {{ template "Footer" }}
 {{ end }}
