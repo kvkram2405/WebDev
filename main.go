@@ -41,8 +41,8 @@ type Employee struct {
 
 var tmpl = template.Must(template.ParseGlob("form/*"))
 
-func root(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Hello, you've requested: %s\n", r.URL.Path)
+func dashboard(w http.ResponseWriter, r *http.Request) {
+	tmpl.ExecuteTemplate(w, "Dashboard", nil)
 }
 
 func Index(w http.ResponseWriter, r *http.Request) {
@@ -98,12 +98,17 @@ func Registration(w http.ResponseWriter, r *http.Request) {
 	tmpl.ExecuteTemplate(w, "Registration", nil)
 }
 
+func LoginPage(w http.ResponseWriter, r *http.Request) {
+	tmpl.ExecuteTemplate(w, "Login", nil)
+}
+
 func Register(w http.ResponseWriter, r *http.Request) {
 	db := dbConn()
 	if r.Method == "POST" {
 		username := r.FormValue("username")
 		password := r.FormValue("password")
-
+		// Password changed to hash
+		hash, _ := HashPassword(password) // ignore error for the sake of simplicity
 		t := time.Now()
 		t.Format(time.RFC3339)
 		insUForm, err := db.Prepare("INSERT INTO users (username,password, created_at) values (?,?,?)")
@@ -111,14 +116,14 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			panic(err.Error())
 		}
-		insUForm.Exec(username, password, t)
+		insUForm.Exec(username, hash, t)
 	}
 	defer db.Close()
 	http.Redirect(w, r, "/", 301)
 }
 
 func web(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Welcome to my website!")
+	fmt.Fprintf(w, "Login Failed! You will be redirected to Registration Page ...")
 }
 
 func HashPassword(password string) (string, error) {
@@ -129,18 +134,6 @@ func HashPassword(password string) (string, error) {
 func CheckPasswordHash(password, hash string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 	return err == nil
-}
-
-func password(w http.ResponseWriter, r *http.Request) {
-
-	password := "secret"
-	hash, _ := HashPassword(password) // ignore error for the sake of simplicity
-
-	fmt.Println("Password:", password)
-	fmt.Println("Hash:    ", hash)
-	match := CheckPasswordHash(password, hash)
-	fmt.Println("Match:   ", match)
-
 }
 
 func secret(w http.ResponseWriter, r *http.Request) {
@@ -161,10 +154,34 @@ func login(w http.ResponseWriter, r *http.Request) {
 
 	// Authentication goes here
 	// ...
-
-	// Set user as authenticated
-	session.Values["authenticated"] = true
-	session.Save(r, w)
+	// Compare user password and hash
+	db := dbConn()
+	if r.Method == "POST" {
+		usernameFlogin := r.FormValue("username")
+		passwordFlogin := r.FormValue("password")
+		selDB, err := db.Query("SELECT * FROM users WHERE username=?", usernameFlogin)
+		if err != nil {
+			panic(err.Error())
+		}
+		for selDB.Next() {
+			var id int
+			var username, password, created_at string
+			err = selDB.Scan(&id, &username, &password, &created_at)
+			if err != nil {
+				panic(err.Error())
+			}
+			hash1 := password                                 // Password from Database
+			match := CheckPasswordHash(passwordFlogin, hash1) // Compare Password from Db and Login page
+			if match == true {
+				http.Redirect(w, r, "/dashboard", 301)
+			} else {
+				http.Redirect(w, r, "/web", 301)
+			}
+		}
+		session.Values["authenticated"] = true
+		session.Save(r, w)
+		defer db.Close()
+	}
 }
 
 func logout(w http.ResponseWriter, r *http.Request) {
@@ -178,9 +195,10 @@ func logout(w http.ResponseWriter, r *http.Request) {
 func main() {
 	r := mux.NewRouter()
 	log.Println("Server started on: http://localhost:3000")
+	r.HandleFunc("/dashboard", dashboard)
 	r.HandleFunc("/", Index)
 	r.HandleFunc("/web", web)
-	r.HandleFunc("/auth", password)
+	r.HandleFunc("/auth", LoginPage)
 	r.HandleFunc("/secret", secret)
 	r.HandleFunc("/login", login)
 	r.HandleFunc("/logout", logout)
