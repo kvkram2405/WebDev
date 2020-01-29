@@ -10,6 +10,7 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/mux"
+	"github.com/gorilla/sessions"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -32,10 +33,47 @@ type Employee struct {
 	Created_at string
 }
 
+var store = sessions.NewCookieStore([]byte("t0p-s3cr3t"))
+
 var tmpl = template.Must(template.ParseGlob("form/*"))
 
 func dashboard(w http.ResponseWriter, r *http.Request) {
-	tmpl.ExecuteTemplate(w, "Dashboard", nil)
+	db := dbConn()
+	session, _ := store.Get(r, "session")
+	untyped, ok := session.Values["username"]
+	if !ok {
+		return
+	}
+	Susername, ok := untyped.(string)
+	if !ok {
+		return
+	}
+	selDB, err := db.Query("SELECT * FROM users WHERE username=?", Susername)
+	if err != nil {
+		panic(err.Error())
+	}
+	emp := Employee{}
+	for selDB.Next() {
+		var id int
+		var username, password, created_at string
+		err = selDB.Scan(&id, &username, &password, &created_at)
+		if err != nil {
+			panic(err.Error())
+		}
+		emp.Id = id
+		emp.Username = username
+		emp.Password = password
+		emp.Created_at = created_at
+	}
+	DMessage := "Either your session expired or you are logged out !!"
+	if Dauth, ok := session.Values["authenticated"].(bool); !ok || !Dauth {
+		//w.Write([]byte(username))
+		tmpl.ExecuteTemplate(w, "Dashboard", emp)
+		return
+	} else {
+		w.Write([]byte(DMessage))
+	}
+	defer db.Close()
 }
 func Index(w http.ResponseWriter, r *http.Request) {
 	db := dbConn()
@@ -117,13 +155,14 @@ func CheckPasswordHash(password, hash string) bool {
 	return err == nil
 }
 func login(w http.ResponseWriter, r *http.Request) {
-	// Authentication goes here
-	// ...
-	// Compare user password and hash
+	r.ParseForm()
 	db := dbConn()
 	if r.Method == "POST" {
 		usernameFlogin := r.FormValue("username")
 		passwordFlogin := r.FormValue("password")
+		session, _ := store.Get(r, "session")
+		session.Values["username"] = usernameFlogin
+		session.Save(r, w)
 		selDB, err := db.Query("SELECT * FROM users WHERE username=?", usernameFlogin)
 		if err != nil {
 			panic(err.Error())
@@ -138,6 +177,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 			hash1 := password                                 // Password from Database
 			match := CheckPasswordHash(passwordFlogin, hash1) // Compare Password from Db and Login page
 			if match == true {
+				session.Values["authenticated"] = true
 				http.Redirect(w, r, "/dashboard", 301)
 			} else {
 				http.Redirect(w, r, "/registration", 301)
@@ -147,6 +187,8 @@ func login(w http.ResponseWriter, r *http.Request) {
 	}
 }
 func logout(w http.ResponseWriter, r *http.Request) {
+	session, _ := store.Get(r, "session")
+	session.Values["authenticated"] = false
 	http.Redirect(w, r, "/", 301)
 }
 func main() {
