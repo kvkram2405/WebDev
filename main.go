@@ -48,6 +48,15 @@ func dashboard(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	untyped1, ok := session.Values["authenticated"]
+	if !ok {
+		return
+	}
+	SDauth, ok := untyped1.(bool)
+	if !ok {
+		return
+	}
+
 	selDB, err := db.Query("SELECT * FROM users WHERE username=?", Susername)
 	if err != nil {
 		panic(err.Error())
@@ -66,7 +75,7 @@ func dashboard(w http.ResponseWriter, r *http.Request) {
 		emp.Created_at = created_at
 	}
 	DMessage := "Either your session expired or you are logged out !!"
-	if Dauth, ok := session.Values["authenticated"].(bool); !ok || !Dauth {
+	if SDauth == true {
 		//w.Write([]byte(username))
 		tmpl.ExecuteTemplate(w, "Dashboard", emp)
 		return
@@ -162,7 +171,6 @@ func login(w http.ResponseWriter, r *http.Request) {
 		passwordFlogin := r.FormValue("password")
 		session, _ := store.Get(r, "session")
 		session.Values["username"] = usernameFlogin
-		session.Save(r, w)
 		selDB, err := db.Query("SELECT * FROM users WHERE username=?", usernameFlogin)
 		if err != nil {
 			panic(err.Error())
@@ -178,17 +186,19 @@ func login(w http.ResponseWriter, r *http.Request) {
 			match := CheckPasswordHash(passwordFlogin, hash1) // Compare Password from Db and Login page
 			if match == true {
 				session.Values["authenticated"] = true
+				session.Save(r, w)
 				http.Redirect(w, r, "/dashboard", 301)
 			} else {
 				http.Redirect(w, r, "/registration", 301)
 			}
 		}
-		defer db.Close()
 	}
+	defer db.Close()
 }
-func logout(w http.ResponseWriter, r *http.Request) {
+func end(w http.ResponseWriter, r *http.Request) {
 	session, _ := store.Get(r, "session")
 	session.Values["authenticated"] = false
+	session.Save(r, w)
 	http.Redirect(w, r, "/", 301)
 }
 func main() {
@@ -198,7 +208,7 @@ func main() {
 	r.HandleFunc("/", Index)
 	r.HandleFunc("/auth", LoginPage)
 	r.HandleFunc("/login", login)
-	r.HandleFunc("/logout", logout)
+	r.HandleFunc("/end", end)
 	r.HandleFunc("/books/{title}/page/{page}", func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		title := vars["title"]
