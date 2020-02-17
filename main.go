@@ -81,6 +81,7 @@ func dashboard(w http.ResponseWriter, r *http.Request) {
 		return
 	} else {
 		w.Write([]byte(DMessage))
+
 	}
 	defer db.Close()
 }
@@ -199,7 +200,7 @@ func end(w http.ResponseWriter, r *http.Request) {
 	session, _ := store.Get(r, "session")
 	session.Values["authenticated"] = false
 	session.Save(r, w)
-	http.Redirect(w, r, "/", 301)
+	http.Redirect(w, r, "/dashboard", 301)
 }
 func main() {
 	r := mux.NewRouter()
