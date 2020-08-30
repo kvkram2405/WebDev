@@ -183,7 +183,8 @@ func login(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				panic(err.Error())
 			}
-			hash1 := password                                 // Password from Database
+			hash1 := password                                 
+// Password from Database
 			match := CheckPasswordHash(passwordFlogin, hash1) // Compare Password from Db and Login page
 			if match == true {
 				session.Values["authenticated"] = true
@@ -221,3 +222,4 @@ func main() {
 	r.HandleFunc("/register", Register)
 	http.ListenAndServe(":3000", r)
 }
+// Recheck code in August 2020
